@@ -1,0 +1,348 @@
+LangGraph Roadmap — Basic → AdvancedPhase 1 — LangGraph Fundamentals
+
+Sabse pehle ye concepts:
+
+LangGraph kya hai?
+LangChain Agent vs LangGraph
+Graph kya hota hai?
+State
+Node
+Edge
+START / END
+Simple workflow banana
+StateGraph
+compile()
+invoke()
+Phase 2 — Conditional Workflows
+Conditional Edges
+Router logic
+Multiple branches
+Decision making
+Loop / cycle
+Retry logic
+Human-in-the-loop basics
+
+Example:
+
+              START
+                ↓
+          Analyze Question
+             /       \
+        Simple       Complex
+          ↓             ↓
+       Answer       Research
+          \             /
+           └──────┬──────┘
+                  ↓
+                 END
+Phase 3 — State Management
+State ka deep understanding
+State schema
+Multiple state fields
+State update
+Reducers
+Messages state
+MessagesState
+Conversation history
+
+Example:
+
+state = {
+  question: "",
+  documents: [],
+  answer: "",
+  score: 0
+}
+Phase 4 — LangGraph + LLM
+LangGraph + Chat Model
+Prompt inside nodes
+Structured output
+Tool calling
+Agent node
+Tool node
+Agent → Tool → Agent loop
+Error handling
+Retry
+
+Yahan tumhe apne LangChain Agent concepts ka actual use samajh aayega.
+
+Phase 5 — LangGraph + RAG 🔥
+
+Tumhare liye ye bahut important phase hai because tum already Qdrant + RAG kar rahi ho.
+
+Hum banayenge:
+
+User Question
+      ↓
+Query Rewrite
+      ↓
+Retriever
+      ↓
+Qdrant
+      ↓
+Reranker
+      ↓
+Context
+      ↓
+LLM
+      ↓
+Answer
+
+Phir advanced:
+
+                  ┌→ Vector Search ─┐
+Question → Router ┤                 ├→ Reranker → LLM
+                  └→ Keyword Search ┘
+
+Isme tum seekhogi:
+
+RAG workflow
+Query rewriting
+Retrieval
+Reranking
+Conditional routing
+Fallback
+Self-correction
+Retrieval grading
+Phase 6 — Production LangGraph
+
+Phir production-level topics:
+
+Checkpointing
+Persistence
+Memory
+Thread/session management
+Streaming
+Interrupts
+Human approval
+Long-running workflows
+Retry
+Error recovery
+State persistence
+Observability
+LangSmith integration
+Phase 7 — Advanced Agentic Systems 🔥
+
+Finally:
+
+Multi-Agent Architecture
+                  User
+                   ↓
+                Supervisor
+              /     |      \
+             ↓      ↓       ↓
+         Research  RAG    Coding
+           Agent   Agent    Agent
+              \     |      /
+               ↓    ↓     ↓
+                Supervisor
+                    ↓
+                  Answer
+
+Topics:
+
+Supervisor pattern
+Multi-agent systems
+Agent handoff
+Subgraphs
+Parallel execution
+Agent collaboration
+Dynamic routing
+Complex workflows
+🛠️ Projects — Theory ke saath
+
+Hum sirf topics nahi padhenge. Har phase ke baad project banayenge.
+
+Project 1 — Basic Workflow
+Question
+   ↓
+Classify
+   ↓
+Answer
+Project 2 — Smart Router
+Question
+    ↓
+Router
+ ┌──┴────┐
+ ↓       ↓
+Simple  Complex
+ ↓       ↓
+LLM    Research
+Project 3 — RAG Agent
+Question
+   ↓
+Agent
+   ↓
+Retriever
+   ↓
+Qdrant
+   ↓
+Answer
+Project 4 — Production RAG Agent 🔥
+                Question
+                    ↓
+               Query Rewrite
+                    ↓
+                  Router
+                /        \
+          Vector Search  Web Search
+                \        /
+                 ↓      ↓
+                  Rerank
+                    ↓
+               Context Check
+                /        \
+             Good       Bad
+              ↓           ↓
+             LLM      Re-retrieve
+              ↓
+            Answer
+Project 5 — Multi-Agent System 🔥🔥
+                  User
+                   ↓
+              Supervisor
+            /      |       \
+           ↓       ↓        ↓
+       Research   RAG     Coding
+         Agent   Agent     Agent
+           \       |       /
+            \      |      /
+             ↓     ↓     ↓
+              Final Answer
+🎯 Tumhare liye learning order
+
+Tum directly advanced LangGraph par jump mat karna.
+
+Tumhara sequence ye rahega:
+
+LangChain
+   ↓
+Agents
+   ↓
+LangGraph Basics
+   ↓
+State / Node / Edge
+   ↓
+Conditional Edges
+   ↓
+Loops
+   ↓
+Tool Calling
+   ↓
+Agent + LangGraph
+   ↓
+LangGraph + RAG
+   ↓
+Query Rewrite + Reranking
+   ↓
+Persistence / Memory
+   ↓
+Human-in-the-loop
+   ↓
+Multi-Agent
+   ↓
+Production LangGraph
+question hai. Tumhe confusion hona normal hai, kyunki LangChain aur LangGraph ke concepts overlap karte hain.
+Simple answer:
+
+Project mein hum LangChain + LangGraph dono use karenge.
+Dono ek dusre ke replacement nahi hain.
+
+Socho:
+
+LangChain = individual AI components/tools
+LangGraph = un components ko workflow/agent system mein connect karna
+Example: Production RAG Agent
+
+Tumhara project kuch aisa hoga:
+
+                    User Question
+                         ↓
+                  ┌──────────────┐
+                  │  LangGraph   │
+                  │  Workflow    │
+                  └──────┬───────┘
+                         ↓
+                      Router
+                    /         \
+                   ↓           ↓
+              Simple          RAG
+                ↓              ↓
+               LLM         Retriever
+                              ↓
+                            Qdrant
+                              ↓
+                           Reranker
+                              ↓
+                              LLM
+                              
+                         ↓
+                       Answer
+
+Yahan LangGraph workflow control karega.
+
+Aur andar ke components mein LangChain use hoga:
+
+Kaam	Use
+Chat model	LangChain
+Prompt	LangChain
+Output parser	LangChain
+Embeddings	LangChain
+Qdrant retriever	LangChain
+Tools	LangChain
+Agent components	LangChain
+Workflow	LangGraph
+State	LangGraph
+Nodes	LangGraph
+Conditional routing	LangGraph
+Loops/retry	LangGraph
+Multi-agent orchestration	LangGraph
+Tumhare current learning ke context mein
+
+Tumne LangChain mein ye cheezein dekhi hain:
+
+Prompt
+   ↓
+Model
+   ↓
+Parser
+
+Retriever
+   ↓
+Documents
+   ↓
+LLM
+
+Tools
+   ↓
+Agent
+
+Ab LangGraph mein hum seekhenge ki in sab ko ek intelligent workflow mein kaise arrange karna hai.
+
+For example:
+
+START
+  ↓
+Question Analysis
+  ↓
+Conditional Router
+  ├───────────────┐
+  ↓               ↓
+Normal Answer    RAG
+                  ↓
+              Retriever
+                  ↓
+               Qdrant
+                  ↓
+               Reranker
+                  ↓
+                LLM
+                  ↓
+                 END
+
+Isliye tumhe LangChain dobara zero se nahi padhna padega.
+Jo concepts tum already seekh chuki ho, unko LangGraph ke andar use karna seekhenge.
+
+Aur tumhare liye best project hoga Production RAG Agent, kyunki tum already Qdrant, embeddings, retrieval aur RAG par practical kar rahi ho.
+
+Next hum LangGraph Topic 1 se start kar sakte hain: LangGraph kya hai + LangChain Agent vs LangGraph, aur main exactly isi project ko mind mein rakhkar samjhaunga.

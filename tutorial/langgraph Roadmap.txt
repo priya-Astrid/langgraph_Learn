@@ -1,0 +1,336 @@
+LangGraph seekhna hoga, lekin abhi tumhe LangGraph ko alag se zero se pura framework padhne ki zarurat nahi hai.
+
+Tumhari current learning stage par best flow ye hai:
+
+LLM
+ ↓
+Tool Calling ✅
+ ↓
+createAgent() ✅
+ ↓
+Agent Memory / Checkpointer ✅
+ ↓
+Thread ID / Multiple Conversations ✅
+ ↓
+LangGraph fundamentals ← AB START
+ ↓
+Persistent Memory
+ ↓
+Advanced Agents
+ ↓
+Production Agent
+Kyun LangGraph ab?
+
+Tum actually already indirectly LangGraph use kar rahi ho.
+
+Tumhara:
+
+createAgent({
+  model,
+  tools,
+  checkpointer,
+});
+
+internally agent execution/state management ke liye LangGraph architecture par based hai.
+
+Isliye ab LangGraph ke fundamentals samajhna natural next step hai.
+
+🚀 LangGraph — Lesson 1
+
+Sabse pehle ek misconception clear karo:
+
+LangGraph ka purpose sirf memory nahi hai.
+
+LangGraph ka main purpose hai:
+
+stateful, multi-step, controllable workflows/agents banana.
+
+Simple language mein:
+
+LangChain Agent
+    ↓
+"LLM ko tools do aur agent ko decide karne do"
+
+
+LangGraph
+    ↓
+"Agent ka workflow/state/control explicitly define karo"
+1. Graph ka basic concept
+
+LangGraph ko initially ek flowchart ki tarah socho.
+
+Example:
+
+START
+  ↓
+LLM
+  ↓
+Tool?
+ /   \
+Yes   No
+ ↓     ↓
+Tool  END
+ ↓
+LLM
+ ↓
+END
+
+Graph mein mainly teen concepts hain:
+
+1. State
+2. Nodes
+3. Edges
+
+Ye 3 sabse pehle seekhne hain.
+
+2. State kya hai?
+
+State = workflow ke andar jo information carry ho rahi hai.
+
+Example:
+
+const state = {
+  question: "What is 10 + 20?",
+  result: null,
+};
+
+Node state ko read/change kar sakta hai.
+
+Example:
+
+State
+
+question = "10 + 20"
+result = null
+
+Calculator node:
+
+State
+
+question = "10 + 20"
+result = 30
+
+So:
+
+State
+ ↓
+Node
+ ↓
+Updated State
+3. Node kya hai?
+
+Node ek function hai jo state ke saath kuch kaam karta hai.
+
+Example:
+
+const calculatorNode = async (state) => {
+
+  const result = 10 + 20;
+
+  return {
+    result,
+  };
+};
+
+Input:
+
+{
+  question: "10 + 20",
+  result: null
+}
+
+Output/update:
+
+{
+  result: 30
+}
+
+Node ko simple language mein:
+
+Graph ka ek processing step.
+
+4. Edge kya hai?
+
+Edge decide karta hai:
+
+Ab next kaunsa node chalega?
+
+Example:
+
+START
+  ↓
+calculator
+  ↓
+END
+
+Yahan:
+
+START → calculator
+calculator → END
+
+edges hain.
+
+5. Conditional Edge
+
+Ye Agent systems mein bahut important hai.
+
+Example:
+
+             ┌──→ tool
+             │
+START → LLM ─┤
+             │
+             └──→ END
+
+LLM decide kare:
+
+Tool required?
+   ↓
+ YES → tool
+ NO  → END
+
+Isko conditional routing bol sakte ho.
+
+6. Agent mein ye exactly kahan use hota hai?
+
+Tumhara current Agent:
+
+const Agent = createAgent({
+  model,
+  tools,
+  checkpointer,
+});
+
+Internally conceptually kuch aisa workflow execute karta hai:
+
+              ┌───────────────┐
+              │      LLM      │
+              └───────┬───────┘
+                      ↓
+                tool required?
+                 /          \
+               YES           NO
+                ↓             ↓
+             TOOL           END
+                ↓
+               LLM
+                ↓
+          tool required?
+
+Yani tum ab tak Agent abstraction use kar rahi thi.
+
+Ab hum seekhenge ki is type ka workflow LangGraph mein khud kaise build hota hai.
+
+7. Abhi coding mat karo — pehle ye mental model
+
+Tumhe ye diagram yaad hona chahiye:
+
+             LANGGRAPH
+                 │
+       ┌─────────┼─────────┐
+       ↓         ↓         ↓
+     STATE     NODES      EDGES
+       │         │         │
+       │         │         │
+       ↓         ↓         ↓
+   Data/state  Functions  Flow
+
+Example:
+
+State
+{
+  question,
+  result
+}
+     ↓
+Node
+calculate()
+     ↓
+State
+{
+  question,
+  result: 30
+}
+     ↓
+Edge
+     ↓
+END
+8. Tumhare liye learning flow
+
+Ab main LangGraph ko beginner se Agent-level tak is order mein karaunga:
+
+LangGraph Phase
+
+Lesson 1 — Fundamentals ← abhi
+
+Graph kya hai
+State
+Node
+Edge
+START / END
+
+Lesson 2 — StateGraph
+
+StateGraph
+State schema
+nodes add karna
+edges add karna
+graph compile karna
+
+Lesson 3 — Conditional Edges
+
+routing
+decision making
+loops
+
+Lesson 4 — Tool + LLM Graph
+
+LLM → Tool → LLM
+
+Lesson 5 — Agent manually build karna
+
+createAgent() ke abstraction ke peeche ka workflow samajhna.
+
+Lesson 6 — Checkpointing
+
+MemorySaver
+thread_id
+state persistence
+
+Lesson 7 — Human in the Loop
+
+Lesson 8 — Error handling / retries
+
+Lesson 9 — Production Agent Architecture
+
+Aur ek important baat
+
+Tumhe Agent aur LangGraph ko separate subjects samajhkar confuse hone ki zarurat nahi hai.
+
+Tumhari journey:
+
+Tool Calling
+     ↓
+createAgent()
+     ↓
+Agent Memory
+     ↓
+LangGraph
+     ↓
+Understand how Agent workflow works
+     ↓
+Advanced Agent
+
+Ye tumhare liye beginner ke perspective se bahut better flow hai.
+
+Ab next hum directly coding karenge:
+
+Lesson 2: StateGraph se apna pehla simple LangGraph banayenge:
+
+START
+  ↓
+addNumbers
+  ↓
+END
+
+Usmein tum khud State → Node → Edge → Compile → Invoke karogi. यही tumhara actual LangGraph start hoga.

@@ -1,0 +1,415 @@
+LangGraph kya hai?
+
+LangGraph ek framework hai jisse hum stateful, multi-step aur agentic AI workflows build karte hain.
+
+Simple language mein:
+
+LangChain se hum AI ke components banate/use karte hain, aur LangGraph se un components ka workflow control karte hain.Example:
+
+User Question
+      ↓
+Analyze
+      ↓
+Router
+   ↙     ↘
+Simple   Complex
+  ↓        ↓
+ LLM     Retriever
+           ↓
+         Qdrant
+           ↓
+          LLM
+   ↘     ↙
+    Final Answer
+
+Ye pura flow LangGraph manage kar sakta hai.
+
+2. LangChain vs LangGraph
+
+Ye difference abhi properly samajh lo, kyunki aage LangGraph isi foundation par chalega.
+
+LangChain
+
+LangChain mein tumhare paas components hote hain:
+
+LLM
+Prompt
+Parser
+Retriever
+Vector Store
+Tool
+Agent
+
+Example:
+
+const response = await model.invoke("What is RAG?");
+
+Ya:
+
+const docs = await retriever.invoke(question);
+
+Yaani LangChain mostly tumhe AI building blocks provide karta hai.
+
+LangGraph
+
+LangGraph un components ko workflow mein connect karta hai:
+
+START
+  ↓
+Analyze Question
+  ↓
+Router
+  ↓
+Retriever
+  ↓
+LLM
+  ↓
+END
+
+Aur important cheez:
+
+LangGraph ko pata hota hai ki workflow ki current state kya hai aur next step kya hona chahiye.
+
+3. Real-life example
+
+Maan lo tum ek PDF Chatbot bana rahi ho.
+
+User:
+
+"What is MongoDB?"
+
+System ko karna hai:
+
+Question
+   ↓
+Check Question
+   ↓
+Is RAG needed?
+   ↓
+   YES
+   ↓
+Search Qdrant
+   ↓
+Get Documents
+   ↓
+Generate Answer
+   ↓
+Return Answer
+
+Ab maan lo documents nahi mile.
+
+Production system mein hum simply fail nahi karna chahte.
+
+Search Qdrant
+     ↓
+Documents found?
+   /       \
+ YES        NO
+ ↓          ↓
+LLM      Rewrite Query
+           ↓
+        Search Again
+
+Ye conditional routing + loop LangGraph ke liye perfect use case hai.
+
+4. LangGraph ke 4 most important concepts
+
+Abhi sirf ye 4 concepts yaad rakho:
+
+State
+Node
+Edge
+Graph
+① State
+
+State = workflow ke andar available data.
+
+Example:
+
+{
+  question: "What is MongoDB?",
+  documents: [],
+  answer: ""
+}
+
+Workflow ke different nodes is state ko read/update kar sakte hain.
+
+② Node
+
+Node = ek kaam/function.
+
+Example:
+
+const analyzeQuestion = async (state) => {
+  // question analyze karo
+
+  return {
+    ...
+  };
+};
+
+Another node:
+
+const generateAnswer = async (state) => {
+  // LLM se answer generate karo
+};
+
+So:
+
+Node 1 = Analyze
+Node 2 = Retrieve
+Node 3 = Generate Answer
+③ Edge
+
+Edge = ek node se doosre node tak connection.
+
+Analyze
+   ↓
+Retrieve
+   ↓
+Generate
+
+Yahan:
+
+Analyze → Retrieve
+Retrieve → Generate
+
+ye edges hain.
+
+④ Graph
+
+Jab hum nodes + edges + state ko combine karte hain:
+
+             Graph
+               │
+       ┌───────┴───────┐
+       ↓               ↓
+     Nodes            Edges
+       ↓               ↓
+    Analyze → Retrieve → Answer
+
+Toh humein LangGraph workflow milta hai.
+
+5. START aur END
+
+LangGraph workflow mein usually:
+
+START
+  ↓
+Node
+  ↓
+Node
+  ↓
+END
+
+START = workflow yahan se begin hota hai.
+
+END = workflow complete.
+
+Example:
+
+START
+  ↓
+analyzeQuestion
+  ↓
+generateAnswer
+  ↓
+END
+6. Pehla LangGraph program
+
+Ab theory ke baad actual Node.js code.
+
+Install:
+
+npm install @langchain/langgraph
+
+Basic imports:
+
+import {
+  StateGraph,
+  START,
+  END
+} from "@langchain/langgraph";
+
+Ab state define karenge.
+
+const graph = new StateGraph({
+  channels: {
+    message: {
+      value: (oldValue, newValue) => newValue,
+      default: () => ""
+    }
+  }
+});
+
+Ab node:
+
+const helloNode = async (state) => {
+
+  console.log("Message:", state.message);
+
+  return {
+    message: "Hello from LangGraph"
+  };
+};
+
+Node graph mein add:
+
+graph.addNode("hello", helloNode);
+
+Ab edges:
+
+graph.addEdge(START, "hello");
+
+graph.addEdge("hello", END);
+
+Finally:
+
+const app = graph.compile();
+
+Run:
+
+const result = await app.invoke({
+  message: "Hello"
+});
+
+console.log(result);
+
+Flow:
+
+START
+  ↓
+hello node
+  ↓
+END
+7. Is code ko mentally kaise samjho?
+
+Ye:
+
+new StateGraph(...)
+
+means:
+
+"Main ek workflow/graph bana raha hoon."
+
+Ye:
+
+addNode("hello", helloNode)
+
+means:
+
+"Mere workflow mein hello naam ka ek step hai."
+
+Ye:
+
+addEdge(START, "hello")
+
+means:
+
+"Workflow start hone ke baad hello node chalega."
+
+Ye:
+
+addEdge("hello", END)
+
+means:
+
+"Hello complete hone ke baad workflow khatam."
+
+Aur:
+
+compile()
+
+means:
+
+"Ab graph ko executable workflow mein convert karo."
+
+Finally:
+
+app.invoke(...)
+
+means:
+
+"Workflow execute karo."
+
+8. Sabse important mental model 🧠
+
+LangGraph ko abhi ke liye aise yaad rakho:
+
+             STATE
+               ↓
+START → NODE → NODE → NODE → END
+          ↑      ↓
+          └──── EDGE
+
+State = data
+
+Node = work
+
+Edge = direction
+
+Graph = complete workflow
+
+9. LangChain Agent vs LangGraph Agent
+
+Tumne Agent padha hai, isliye ye difference important hai.
+
+Traditional Agent:
+
+User
+ ↓
+Agent
+ ↓
+LLM decides tool
+ ↓
+Tool
+ ↓
+LLM
+ ↓
+Answer
+
+LangGraph-based agent:
+
+START
+ ↓
+Agent Node
+ ↓
+Should call tool?
+ ├── YES → Tool Node
+ │           ↓
+ │        Agent Node
+ │           ↓
+ │        ...
+ │
+ └── NO → END
+
+Yahan tum explicitly control kar sakti ho:
+
+tool kab call hoga
+retry kab hoga
+condition kya hogi
+loop kab chalega
+workflow kab stop hoga
+human approval kab chahiye
+state mein kya save hoga
+
+Isi wajah se production-grade agentic workflows mein LangGraph bahut useful hai.
+
+🎯 Lesson 1 ka takeaway
+
+Aaj ke lesson mein bas ye properly samajh lo:
+
+LangChain
+   ↓
+AI Components
+   ↓
+LLM / Prompt / Retriever / Tools / Agent
+
+
+LangGraph
+   ↓
+Workflow orchestration
+   ↓
+State + Nodes + Edges
+   ↓
+Conditional logic + Loops + Persistence
