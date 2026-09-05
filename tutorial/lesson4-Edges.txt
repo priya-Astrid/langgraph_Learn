@@ -1,0 +1,528 @@
+Lesson 4 — Edges in LangGraph
+
+Tumhare current graph mein:
+
+START
+  ↓
+input
+  ↓
+processQuestion
+  ↓
+response
+  ↓
+END
+
+Ye jo ↓ connections hain, wahi Edges hain.
+
+1. Edge kya hota hai?
+
+Simple definition:
+
+Edge decide karta hai ki ek node ke baad workflow ko kis node par jaana hai.
+
+Example:
+
+.addEdge("input", "processQuestion")
+
+Meaning:
+
+input
+  ↓
+processQuestion
+
+Yaani input node complete hone ke baad processQuestion chalega.
+
+2. Tumhare code mein Edges
+
+Tumne ye likha:
+
+.addEdge(START, "input")
+.addEdge("input", "processQuestion")
+.addEdge("processQuestion", "response")
+.addEdge("response", END);
+
+Iska exact flow:
+
+START
+  ↓
+input
+  ↓
+processQuestion
+  ↓
+response
+  ↓
+END
+
+Ye Normal/Static Edge hai.
+
+3. Normal Edge kya hota hai?
+
+Normal edge ka matlab:
+
+Always same next node par jaana.
+
+Example:
+
+.addEdge("input", "processQuestion")
+
+Chahe input kuch bhi ho:
+
+"What is RAG?"
+
+ya:
+
+"What is MongoDB?"
+
+ya:
+
+"Hello"
+
+flow hamesha:
+
+input
+ ↓
+processQuestion
+
+rahega.
+
+4. Real-life example
+
+Suppose order processing system:
+
+START
+  ↓
+Create Order
+  ↓
+Payment
+  ↓
+Send Email
+  ↓
+END
+
+Yahan:
+
+.addEdge("createOrder", "payment")
+.addEdge("payment", "sendEmail")
+
+Normal edge perfect hai.
+
+Lekin problem tab aati hai jab next step condition par depend kare.
+
+For example:
+
+Payment successful?
+      /       \
+    YES        NO
+     ↓          ↓
+Send Email    Cancel Order
+
+Yahan normal edge enough nahi hai.
+
+Yahan chahiye:
+
+🔥 Conditional Edge
+5. Conditional Edge kya hota hai?
+
+Simple definition:
+
+Conditional edge current state ko check karke decide karta hai ki next kaunsa node execute hoga.
+
+Example:
+
+             Analyze
+                ↓
+        Is RAG required?
+          /          \
+        YES           NO
+         ↓             ↓
+     Retrieve         LLM
+         ↓             ↓
+         └──────┬──────┘
+                ↓
+               END
+
+Yahan Analyze ke baad fixed node nahi hai.
+
+Decision lena hai.
+
+6. Simple example
+
+State:
+
+const State = new StateSchema({
+  question: z.string(),
+  type: z.string(),
+  answer: z.string(),
+});
+
+Ab router function:
+
+const router = (state) => {
+
+  if (state.type === "rag") {
+    return "retrieve";
+  }
+
+  return "directAnswer";
+};
+
+Router ka kaam:
+
+state.type
+    ↓
+   check
+  /     \
+rag     other
+ ↓        ↓
+retrieve directAnswer
+7. Conditional Edge ka syntax
+
+LangGraph mein conceptually:
+
+.addConditionalEdges(
+  "router",
+  router
+)
+
+Meaning:
+
+router node ke baad router() function decide karega ki next kaha jaana hai.
+
+Usually mapping bhi de sakte ho:
+
+.addConditionalEdges(
+  "router",
+  router,
+  {
+    retrieve: "retrieve",
+    direct: "directAnswer"
+  }
+)
+
+Yahan:
+
+router() returns "retrieve"
+              ↓
+          retrieve node
+
+Aur:
+
+router() returns "direct"
+              ↓
+        directAnswer node
+8. Full Conditional Edge Example 🔥
+
+Ab ek proper example banate hain.
+
+State
+const State = new StateSchema({
+  question: z.string(),
+  type: z.string(),
+  answer: z.string(),
+});
+Router Node
+const analyzeQuestion = async (state) => {
+
+  if (state.question.toLowerCase().includes("rag")) {
+    return {
+      type: "rag"
+    };
+  }
+
+  return {
+    type: "direct"
+  };
+};
+
+Ye node question analyze karega.
+
+Retrieve Node
+const retrieveNode = async (state) => {
+
+  return {
+    answer: "Searching documents for: " + state.question
+  };
+};
+Direct Answer Node
+const directAnswerNode = async (state) => {
+
+  return {
+    answer: "Direct answer for: " + state.question
+  };
+};
+Router Function
+const routeQuestion = (state) => {
+
+  if (state.type === "rag") {
+    return "retrieve";
+  }
+
+  return "direct";
+};
+9. Graph
+const workflow = new StateGraph(State)
+
+  .addNode("analyze", analyzeQuestion)
+  .addNode("retrieve", retrieveNode)
+  .addNode("direct", directAnswerNode)
+
+  .addEdge(START, "analyze")
+
+  .addConditionalEdges(
+    "analyze",
+    routeQuestion,
+    {
+      retrieve: "retrieve",
+      direct: "direct"
+    }
+  )
+
+  .addEdge("retrieve", END)
+  .addEdge("direct", END);
+
+Flow:
+
+                  START
+                    ↓
+                 analyze
+                    ↓
+              routeQuestion
+               /           \
+            retrieve       direct
+               ↓             ↓
+              END           END
+10. Test 1
+
+Input:
+
+await app.invoke({
+  question: "What is RAG?",
+  type: "",
+  answer: ""
+});
+
+Analyze:
+
+if (question.includes("rag"))
+
+condition true.
+
+Therefore:
+
+START
+  ↓
+analyze
+  ↓
+retrieve
+  ↓
+END
+11. Test 2
+
+Input:
+
+await app.invoke({
+  question: "What is MongoDB?",
+  type: "",
+  answer: ""
+});
+
+RAG condition false.
+
+Therefore:
+
+START
+  ↓
+analyze
+  ↓
+direct
+  ↓
+END
+
+🔥 Yahi conditional routing hai.
+
+12. Normal Edge vs Conditional Edge
+
+Interview ke liye ye table yaad kar lo:
+
+Normal Edge	Conditional Edge
+Fixed path	Dynamic path
+Always same next node	Condition ke according next node
+.addEdge()	.addConditionalEdges()
+Simple workflow	Decision-making workflow
+No routing logic	Router function use hota hai
+
+Example:
+
+Normal
+.addEdge("A", "B")
+A → B
+Conditional
+.addConditionalEdges("A", router)
+       A
+      / \
+     B   C
+13. Tumhare RAG project mein 🔥
+
+Ab tumhare existing RAG concepts ko LangGraph mein imagine karo.
+
+Tumhare paas:
+
+Query rewrite
+Retriever
+Qdrant
+Reranker
+Context compression
+Answer generation
+
+Ye sab humne pehle practice kiya hai.
+
+Normal workflow:
+
+START
+  ↓
+Query Rewrite
+  ↓
+Qdrant Retrieve
+  ↓
+Reranker
+  ↓
+Context Compression
+  ↓
+LLM
+  ↓
+END
+
+Lekin production mein better:
+
+START
+  ↓
+Analyze Question
+  ↓
+Need RAG?
+ /       \
+NO       YES
+↓         ↓
+LLM     Rewrite
+          ↓
+        Qdrant
+          ↓
+       Reranker
+          ↓
+      Good Context?
+       /       \
+     YES        NO
+      ↓          ↓
+     LLM      Retrieve Again
+
+Yahan Conditional Edges ka real power dikhta hai.
+
+14. Ek important distinction: Router Node vs Router Function
+
+Ye beginners ko confuse karta hai.
+
+Router Node
+
+Ye actual processing kar sakta hai:
+
+const analyzeNode = async (state) => {
+  return {
+    type: "rag"
+  };
+};
+Router Function
+
+Ye decide karta hai:
+
+const route = (state) => {
+
+  if (state.type === "rag") {
+    return "retrieve";
+  }
+
+  return "direct";
+};
+
+So:
+
+             Node
+              ↓
+         State update
+              ↓
+        Router Function
+          /        \
+         ↓          ↓
+      Node A      Node B
+15. Production perspective 🚀
+
+Conditional edges ka use tum in cases mein karogi:
+
+Retry
+LLM
+ ↓
+Success?
+ /   \
+YES   NO
+ ↓     ↓
+END   Retry
+RAG validation
+Retrieve
+   ↓
+Documents found?
+ /           \
+YES           NO
+ ↓             ↓
+Rerank      Rewrite Query
+Agent
+Agent
+  ↓
+Tool needed?
+ /        \
+YES        NO
+ ↓          ↓
+Tool       END
+ ↓
+Agent
+Human approval
+Agent
+  ↓
+Sensitive action?
+ /            \
+YES            NO
+ ↓              ↓
+Human          Execute
+Approval
+
+Ye sab LangGraph ke core patterns hain.
+
+🎯 Lesson 4 — Interview Answer
+
+Interviewer:
+
+"What is an edge in LangGraph?"
+
+Tum:
+
+An edge defines the transition between nodes in a LangGraph workflow. A normal edge provides a fixed transition, while a conditional edge dynamically determines the next node based on the current state or routing logic.
+
+Agar woh puche:
+
+"Difference between normal and conditional edges?"
+
+Tum:
+
+A normal edge always follows a predefined path, whereas a conditional edge evaluates a routing function and can select different paths based on the state.
+
+🧠 Ab tak LangGraph ka foundation
+              LangGraph
+                  │
+          ┌───────┴────────┐
+          ↓                ↓
+        State             Graph
+                           │
+                    ┌──────┴──────┐
+                    ↓             ↓
+                  Nodes         Edges
+                                  │
+                            ┌─────┴─────┐
+                            ↓           ↓
+                          Normal    Conditional

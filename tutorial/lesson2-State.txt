@@ -1,0 +1,411 @@
+Lesson 2 — State in LangGraph
+
+Ye LangGraph ka sabse important concept hai. Agar State clear ho gaya, to Node, Edge, Agent loop, Memory aur Multi-Agent kaafi easy ho jayega.
+
+1. State kya hota hai?
+
+Simple definition:
+
+State = workflow ke andar jo data currently available hai.
+
+Example:
+
+{
+  question: "What is MongoDB?",
+  answer: "",
+  documents: []
+}
+
+Ye pura object hamara State hai.
+
+Workflow ke different nodes isi state ko:
+
+read kar sakte hain
+update kar sakte hain
+2. Real-life example
+
+Maan lo tumhara RAG system hai.
+
+User question:
+
+"What is MongoDB?"
+
+Starting state:
+
+{
+  question: "What is MongoDB?",
+  documents: [],
+  answer: ""
+}
+Node 1 — Retrieve
+
+Retriever documents find karega.
+
+State:
+
+{
+  question: "What is MongoDB?",
+  documents: [
+    "MongoDB is a NoSQL database..."
+  ],
+  answer: ""
+}
+Node 2 — Generate Answer
+
+LLM documents use karke answer generate karega.
+
+State:
+
+{
+  question: "What is MongoDB?",
+  documents: [
+    "MongoDB is a NoSQL database..."
+  ],
+  answer: "MongoDB is a NoSQL document database."
+}
+
+Finally:
+
+START
+  ↓
+Retrieve
+  ↓
+Generate Answer
+  ↓
+END
+
+State har step par carry hoti hai.
+
+3. State ko ek bag samjho 🎒
+
+Easy mental model:
+
+              STATE
+        ┌─────────────────┐
+        │ question        │
+        │ documents       │
+        │ answer          │
+        │ score           │
+        │ userId          │
+        └─────────────────┘
+              ↑     ↓
+           Nodes read/update
+
+Har node ko ye bag milta hai.
+
+Node required data nikalta hai aur updated data return karta hai.
+
+4. State define kaise karte hain?
+
+Current LangGraph versions mein state ko define karne ke liye commonly Zod schema use kar sakte hain.
+
+Node.js project mein:
+
+npm install @langchain/langgraph @langchain/core zod
+
+Ab:
+
+import { StateGraph, START, END } from "@langchain/langgraph";
+import { z } from "zod";
+
+State:
+
+const State = z.object({
+  question: z.string(),
+  answer: z.string(),
+});
+
+Iska matlab:
+
+State
+ ├── question → string
+ └── answer   → string
+5. Node State ko kaise receive karta hai?
+const processQuestion = async (state) => {
+
+  console.log(state.question);
+
+  return {
+    answer: "MongoDB is a NoSQL database."
+  };
+};
+
+Agar input hai:
+
+{
+  question: "What is MongoDB?",
+  answer: ""
+}
+
+Node ko pura state milega:
+
+state = {
+  question: "What is MongoDB?",
+  answer: ""
+}
+
+Aur node return karega:
+
+{
+  answer: "MongoDB is a NoSQL database."
+}
+6. Important concept — Node ko pura State return nahi karna
+
+Ye bahut important hai.
+
+Tumhe ye karne ki zarurat nahi:
+
+return {
+  question: state.question,
+  answer: "MongoDB is a NoSQL database."
+};
+
+Instead:
+
+return {
+  answer: "MongoDB is a NoSQL database."
+};
+
+Graph state mein returned updates apply karta hai.
+
+Conceptually:
+
+Old State
+   ↓
+Node
+   ↓
+State Update
+   ↓
+New State
+7. Complete mini example
+
+Ab ek simple workflow banate hain.
+
+import { StateGraph, START, END } from "@langchain/langgraph";
+import { z } from "zod";
+
+const State = z.object({
+  question: z.string(),
+  answer: z.string(),
+});
+
+const processQuestion = async (state) => {
+
+  console.log("Question:", state.question);
+
+  return {
+    answer: "MongoDB is a NoSQL database."
+  };
+};
+
+const workflow = new StateGraph(State)
+  .addNode("processQuestion", processQuestion)
+  .addEdge(START, "processQuestion")
+  .addEdge("processQuestion", END);
+
+const app = workflow.compile();
+
+const result = await app.invoke({
+  question: "What is MongoDB?",
+  answer: ""
+});
+
+console.log(result);
+
+Expected result conceptually:
+
+{
+  question: "What is MongoDB?",
+  answer: "MongoDB is a NoSQL database."
+}
+8. Ab 2 Nodes banate hain 🔥
+
+Real understanding yahan se aayegi.
+
+START
+  ↓
+Question Node
+  ↓
+Answer Node
+  ↓
+END
+
+State:
+
+{
+  question: "",
+  answer: ""
+}
+Node 1
+const questionNode = async (state) => {
+
+  console.log("Question:", state.question);
+
+  return {};
+};
+Node 2
+const answerNode = async (state) => {
+
+  return {
+    answer: `You asked: ${state.question}`
+  };
+};
+
+Graph:
+
+const workflow = new StateGraph(State)
+  .addNode("questionNode", questionNode)
+  .addNode("answerNode", answerNode)
+
+  .addEdge(START, "questionNode")
+  .addEdge("questionNode", "answerNode")
+  .addEdge("answerNode", END);
+
+Flow:
+
+START
+  ↓
+questionNode
+  ↓
+answerNode
+  ↓
+END
+9. State flow samjho
+
+Input:
+
+{
+  question: "What is RAG?",
+  answer: ""
+}
+START
+question = "What is RAG?"
+answer = ""
+
+↓
+
+questionNode
+
+State read:
+
+question = "What is RAG?"
+
+No update.
+
+↓
+
+answerNode
+
+State read:
+
+question = "What is RAG?"
+
+Update:
+
+answer = "You asked: What is RAG?"
+
+↓
+
+END
+
+Final:
+
+{
+  question: "What is RAG?",
+  answer: "You asked: What is RAG?"
+}
+10. State ka actual power 🔥
+
+Ab imagine karo tumhara production RAG workflow:
+
+{
+  question: "Explain RAG",
+  rewrittenQuery: "",
+  documents: [],
+  rerankedDocuments: [],
+  context: "",
+  answer: "",
+  score: 0
+}
+
+Then:
+
+START
+  ↓
+Query Rewrite
+  ↓
+Retrieve
+  ↓
+Rerank
+  ↓
+Check Context
+  ↓
+Generate Answer
+  ↓
+END
+
+Har node state ka ek part update karega.
+
+Query Rewrite
+{
+  rewrittenQuery: "retrieval augmented generation explanation"
+}
+Retrieve
+{
+  documents: [...]
+}
+Rerank
+{
+  rerankedDocuments: [...]
+}
+Generate
+{
+  answer: "RAG is..."
+}
+
+Ye exactly woh architecture hai jo hum tumhare RAG + Qdrant + Agent project mein eventually build karenge.
+
+🧠 11. Sabse important distinction
+State ≠ Memory
+
+Ye confusion mat karna.
+
+State:
+
+Current workflow mein available data.
+
+Memory:
+
+Previous interactions / information ko future turns ke liye persist karna.
+
+Example:
+
+State
+ ↓
+Current question
+Current documents
+Current answer
+
+while memory could involve:
+
+Previous conversation
+User preferences
+Previous workflow state
+
+Later hum Persistence + Checkpointing + Memory mein isko deeply dekhenge.
+
+🎯 Lesson 2 ka summary
+
+Abhi ye 5 cheezein yaad rakho:
+
+1. State = workflow ka data
+
+2. Node = State ko read/update karta hai
+
+3. Node usually state update return karta hai
+
+4. Updated State next node ko available hoti hai
+
+5. Complete workflow:
+   START → Nodes → END
+   

@@ -1,0 +1,31 @@
+
+
+2. What is a node in LangGraph?
+A node in LangGraph represents a unit of work in the workflow. It is typically a function that receives the current state, performs a specific operation such as calling an LLM, retrieving documents, or executing a tool, and returns state updates. Multiple nodes are connected through edges to create the overall workflow.
+
+"Node is basically a function that performs one specific task and updates the graph state."
+---------------------------------------------------
+
+3. Normal Edge vs Conditional Edge
+
+Normal Edge	                       Conditional Edge
+Fixed path          	           Dynamic path
+Always same next node	           Condition ke according next node
+.addEdge()	                      .addConditionalEdges()
+Simple workflow                    Decision-making workflow
+No routing logic	               Router function use hota hai
+Example:                           Example:
+Normal                             Conditional
+.addEdge("A", "B")                 .addConditionalEdges("A", router)
+A → B                                       A
+                                          /   \
+                                          B   C
+----------------------------------------------------------------------
+4. What is an edge in LangGraph?
+An edge defines the transition between nodes in a LangGraph workflow. 
+A normal edge provides a fixed transition, while a conditional edge dynamically determines the next node based on the current state or routing logic.
+---------------------------------------------------------------------
+
+5. Difference between normal and conditional edges?
+A normal edge always follows a predefined path, whereas a conditional edge evaluates a routing function and can select different paths based on the state.
+-----------------------------------------------------------
