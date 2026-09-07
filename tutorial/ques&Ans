@@ -29,3 +29,11 @@ A normal edge provides a fixed transition, while a conditional edge dynamically 
 5. Difference between normal and conditional edges?
 A normal edge always follows a predefined path, whereas a conditional edge evaluates a routing function and can select different paths based on the state.
 -----------------------------------------------------------
+
+What is a cycle in LangGraph?
+
+A cycle is created when an edge routes the workflow back to a previously executed node. Cycles are useful for iterative agent workflows, retries, and self-correcting RAG systems. We should always have a termination condition or iteration limit to prevent infinite execution.
+-------------------
+Q: Why are loops useful in agents?
+
+Agents often need multiple iterations of reasoning and tool execution. A loop allows the agent to call a tool, receive the result, reason again, and continue until it decides that no more actions are required.

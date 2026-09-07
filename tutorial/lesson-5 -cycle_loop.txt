@@ -1,0 +1,568 @@
+Lesson 5 — Loops & Cycles
+
+Abhi tak humara workflow linear tha:
+
+START
+  ↓
+Node A
+  ↓
+Node B
+  ↓
+Node C
+  ↓
+END
+
+Lekin Agentic system mein workflow hamesha straight nahi hota.
+
+Example:
+
+START
+  ↓
+Agent
+  ↓
+Tool required?
+  ↓
+ YES
+  ↓
+Tool
+  ↓
+Agent
+  ↓
+Tool required?
+  ↓
+ YES
+  ↓
+Tool
+  ↓
+Agent
+  ↓
+...
+  ↓
+ NO
+  ↓
+END
+
+Isko cycle/loop kehte hain.
+
+1. Loop kya hota hai?
+
+Simple definition:
+
+Jab workflow kisi previous node par wapas aata hai aur process dobara execute hota hai, usse cycle/loop kehte hain.
+
+Example:
+
+A → B → C
+    ↑   ↓
+    └───┘
+
+Yahan C se wapas B par aa rahe hain.
+
+2. LangGraph mein loop kyun chahiye?
+
+Agent ko aksar ek hi attempt mein answer nahi milta.
+
+Example:
+
+Question
+   ↓
+Agent
+   ↓
+Need Tool?
+   ↓
+YES
+   ↓
+Tool
+   ↓
+Agent
+
+Tool ka result Agent ko dobara dena padega.
+
+Agent phir decide karega:
+
+Tool needed?
+ /       \
+YES       NO
+ ↓         ↓
+Tool      Answer
+ ↓
+Agent
+
+Isliye Agent:
+
+Agent → Tool → Agent → Tool → Agent → END
+
+kar sakta hai.
+
+3. Simple loop example
+
+Hum ek counter banate hain.
+
+State:
+
+import { z } from "zod";
+
+const State = new StateSchema({
+  count: z.number(),
+});
+
+Node:
+
+const incrementNode = async (state) => {
+  return {
+    count: state.count + 1,
+  };
+};
+
+Router:
+
+const shouldContinue = (state) => {
+
+  if (state.count < 3) {
+    return "continue";
+  }
+
+  return "end";
+};
+
+Graph:
+
+const workflow = new StateGraph(State)
+  .addNode("increment", incrementNode)
+
+  .addEdge(START, "increment")
+
+  .addConditionalEdges(
+    "increment",
+    shouldContinue,
+    {
+      continue: "increment",
+      end: END,
+    }
+  );
+
+const app = workflow.compile();
+
+Run:
+
+const result = await app.invoke({
+  count: 0,
+});
+
+console.log(result);
+4. Iska execution samjho 🔥
+
+Starting:
+
+count = 0
+First execution
+START
+ ↓
+increment
+
+Count:
+
+0 → 1
+
+Router:
+
+count < 3
+
+True.
+
+So:
+
+increment
+   ↓
+increment
+Second execution
+1 → 2
+
+Again:
+
+2 < 3
+
+True.
+
+So:
+
+increment
+   ↓
+increment
+Third execution
+2 → 3
+
+Now:
+
+3 < 3
+
+False.
+
+Router:
+
+END
+
+Final:
+
+START
+ ↓
+increment
+ ↓
+increment
+ ↓
+increment
+ ↓
+END
+
+🔥 Ye LangGraph ka cycle hai.
+
+5. Sabse important part
+
+Ye line:
+
+continue: "increment"
+
+dekho.
+
+Humne:
+
+increment → increment
+
+kar diya.
+
+Matlab node khud ko dobara call kar sakta hai.
+
+Ya different nodes ke beech:
+
+agent → tool → agent
+
+bhi kar sakte hain.
+
+6. Agent Loop
+
+Ab is concept ko Agent se connect karo.
+
+Suppose state:
+
+const State = new StateSchema({
+  question: z.string(),
+  toolRequired: z.boolean(),
+  toolResult: z.string(),
+  answer: z.string(),
+});
+
+Agent node:
+
+const agentNode = async (state) => {
+
+  // LLM decide karega
+  // tool chahiye ya nahi
+
+  return {
+    toolRequired: true
+  };
+};
+
+Tool node:
+
+const toolNode = async (state) => {
+
+  return {
+    toolResult: "Tool result..."
+  };
+};
+
+Router:
+
+const routeAgent = (state) => {
+
+  if (state.toolRequired) {
+    return "tool";
+  }
+
+  return "end";
+};
+
+Workflow:
+
+START
+  ↓
+Agent
+  ↓
+Tool required?
+ /        \
+YES        NO
+ ↓          ↓
+Tool       END
+ ↓
+Agent
+
+Graph:
+
+.addEdge(START, "agent")
+
+.addConditionalEdges(
+  "agent",
+  routeAgent,
+  {
+    tool: "tool",
+    end: END
+  }
+)
+
+.addEdge("tool", "agent")
+
+Last line is extremely important:
+
+.addEdge("tool", "agent")
+
+It creates:
+
+Agent → Tool → Agent
+7. Real Agent flow
+
+Imagine user asks:
+
+"What is the weather in Indore?"
+
+Agent thinks:
+
+Do I need a tool?
+      ↓
+     YES
+      ↓
+Weather Tool
+
+Tool returns:
+
+Temperature = 28°C
+
+Now Agent gets tool result:
+
+Agent
+ ↓
+Tool result
+ ↓
+Think again
+
+Agent decides:
+
+Do I need another tool?
+       ↓
+      NO
+       ↓
+Generate final answer
+       ↓
+END
+
+Complete flow:
+
+             START
+               ↓
+             Agent
+               ↓
+         Tool required?
+           /        \
+         YES         NO
+          ↓           ↓
+         Tool        END
+          ↓
+        Agent
+          ↓
+     Tool required?
+       /       \
+     YES        NO
+      ↓          ↓
+    Tool        END
+
+Ye Agentic Loop hai.
+
+8. Loop aur Conditional Edge ka relation
+
+Important:
+
+Loop khud koi separate magic feature nahi hai.
+
+Hum generally:
+
+Conditional Edge
+       +
+Edge back to previous node
+       =
+Cycle
+
+Example:
+
+.addConditionalEdges(
+  "agent",
+  route,
+  {
+    tool: "tool",
+    end: END
+  }
+)
+
+.addEdge("tool", "agent");
+
+Result:
+
+agent → tool → agent
+9. Production mein loop dangerous bhi ho sakta hai ⚠️
+
+Ye bahut important production point hai.
+
+Agar condition kabhi false hi nahi hui:
+
+Agent
+ ↓
+Tool
+ ↓
+Agent
+ ↓
+Tool
+ ↓
+Agent
+ ↓
+Tool
+ ↓
+...
+
+To workflow theoretically continuously run kar sakta hai.
+
+Isliye production mein termination condition zaroori hai.
+
+Example:
+
+const MAX_ITERATIONS = 5;
+
+State:
+
+const State = new StateSchema({
+  question: z.string(),
+  iterations: z.number(),
+});
+
+Then:
+
+const route = (state) => {
+
+  if (state.iterations >= 5) {
+    return "end";
+  }
+
+  return "continue";
+};
+
+So:
+
+iterations >= 5
+       ↓
+      END
+10. Production Agent mein safety
+
+Real project mein loop ke saath hum consider karenge:
+
+Maximum iterations
+maxIterations = 5
+Timeout
+Workflow maximum time
+Retry limit
+API failed
+ ↓
+retry
+ ↓
+retry
+ ↓
+maximum retry
+ ↓
+failure
+Error handling
+Tool Error
+   ↓
+Fallback
+   ↓
+Agent
+11. Tumhare RAG project mein loop 🔥
+
+Ye tumhare liye sabse important example hai.
+
+Suppose:
+
+Question
+   ↓
+Retrieve
+   ↓
+Documents found?
+
+Agar documents nahi mile:
+
+       Retrieve
+          ↓
+   Documents found?
+       /       \
+     YES        NO
+      ↓          ↓
+   Rerank    Rewrite Query
+                 ↓
+              Retrieve
+
+Yahan:
+
+Retrieve
+   ↓
+Rewrite Query
+   ↓
+Retrieve
+
+cycle ban gaya.
+
+Complete:
+
+START
+  ↓
+Query Rewrite
+  ↓
+Retrieve
+  ↓
+Documents Found?
+  ├── YES → Rerank → Generate → END
+  │
+  └── NO → Rewrite → Retrieve
+
+Ye self-correcting RAG ka basic foundation hai.
+
+Tumhare existing RAG mein tumne query rewriting, multi-query, Qdrant retrieval, Cohere reranking aur context compression practice ki hai; LangGraph in steps ko conditional retry/loop workflow mein organize karne ke liye use hoga.
+
+12. Normal Workflow vs Loop Workflow
+Normal
+START
+ ↓
+A
+ ↓
+B
+ ↓
+C
+ ↓
+END
+Conditional
+START
+ ↓
+A
+ ↓
+condition
+ /      \
+B        C
+Loop
+START
+ ↓
+A
+ ↓
+condition
+ ↓
+B
+ ↓
+A
+ ↓
+condition
+ ↓
+END

@@ -1,0 +1,533 @@
+tumhare existing LangChain + Qdrant RAG project ke liye directly useful hoga.
+
+Lesson 6 — LangGraph + RAG Cycle
+
+Hum ye workflow banayenge:
+
+START
+  ↓
+rewriteQuery
+  ↓
+retrieve
+  ↓
+checkDocuments
+  │
+  ├── documents found → generateAnswer → END
+  │
+  └── documents NOT found
+             ↓
+        rewriteQuery
+             ↓
+          retrieve
+             ↓
+        checkDocuments
+
+Yaha rewriteQuery → retrieve → checkDocuments cycle hai.
+
+Step 1 — Complete practical code
+LangGraph RAG Retry Cycle
+import {
+  END,
+  START,
+  StateGraph,
+  StateSchema,
+} from "@langchain/langgraph";
+
+import z from "zod";
+
+export const ragCycle = async () => {
+
+  // =========================================
+  // 1. STATE
+  // =========================================
+
+  const State = new StateSchema({
+    question: z.string(),
+
+    searchQuery: z.string(),
+
+    documents: z.array(z.string()),
+
+    retryCount: z.number(),
+
+    answer: z.string(),
+  });
+
+
+  // =========================================
+  // 2. REWRITE QUERY NODE
+  // =========================================
+
+  const rewriteQueryNode = async (state) => {
+
+    console.log("🔄 Rewrite Query");
+
+    return {
+      searchQuery: state.question + " detailed explanation",
+    };
+  };
+
+
+  // =========================================
+  // 3. RETRIEVE NODE
+  // =========================================
+
+  const retrieveNode = async (state) => {
+
+    console.log("🔍 Retrieve Documents");
+
+    // Real project me yaha Qdrant retriever call hoga
+
+    if (state.retryCount === 0) {
+      return {
+        documents: [],
+      };
+    }
+
+    return {
+      documents: [
+        "RAG stands for Retrieval Augmented Generation.",
+        "RAG retrieves relevant documents before generating an answer.",
+      ],
+    };
+  };
+
+
+  // =========================================
+  // 4. CHECK DOCUMENTS
+  // =========================================
+
+  const checkDocumentsNode = async (state) => {
+
+    console.log(
+      "📄 Documents found:",
+      state.documents.length
+    );
+
+    return {};
+  };
+
+
+  // =========================================
+  // 5. ROUTER
+  // =========================================
+
+  const routeAfterDocumentCheck = (state) => {
+
+    if (state.documents.length > 0) {
+
+      return "answer";
+
+    }
+
+    if (state.retryCount >= 2) {
+
+      return "end";
+
+    }
+
+    return "retry";
+  };
+
+
+  // =========================================
+  // 6. RETRY COUNT NODE
+  // =========================================
+
+  const retryNode = async (state) => {
+
+    console.log("♻️ Retry");
+
+    return {
+      retryCount: state.retryCount + 1,
+    };
+  };
+
+
+  // =========================================
+  // 7. ANSWER NODE
+  // =========================================
+
+  const generateAnswerNode = async (state) => {
+
+    console.log("🤖 Generate Answer");
+
+    return {
+      answer:
+        "Based on the retrieved documents: " +
+        state.documents.join(" "),
+    };
+  };
+
+
+  // =========================================
+  // 8. GRAPH
+  // =========================================
+
+  const workflow = new StateGraph(State)
+
+    // Nodes
+    .addNode("rewriteQuery", rewriteQueryNode)
+
+    .addNode("retrieve", retrieveNode)
+
+    .addNode("checkDocuments", checkDocumentsNode)
+
+    .addNode("retry", retryNode)
+
+    .addNode("generateAnswer", generateAnswerNode)
+
+
+    // START
+    .addEdge(
+      START,
+      "rewriteQuery"
+    )
+
+
+    // Rewrite → Retrieve
+    .addEdge(
+      "rewriteQuery",
+      "retrieve"
+    )
+
+
+    // Retrieve → Check
+    .addEdge(
+      "retrieve",
+      "checkDocuments"
+    )
+
+
+    // Check → Router
+    .addConditionalEdges(
+      "checkDocuments",
+      routeAfterDocumentCheck,
+      {
+        answer: "generateAnswer",
+
+        retry: "retry",
+
+        end: END,
+      }
+    )
+
+
+    // Retry → Rewrite
+    .addEdge(
+      "retry",
+      "rewriteQuery"
+    )
+
+
+    // Answer → END
+    .addEdge(
+      "generateAnswer",
+      END
+    );
+
+
+  // =========================================
+  // 9. COMPILE
+  // =========================================
+
+  const app = workflow.compile();
+
+
+  // =========================================
+  // 10. INVOKE
+  // =========================================
+
+  const result = await app.invoke({
+
+    question: "What is RAG?",
+
+    searchQuery: "",
+
+    documents: [],
+
+    retryCount: 0,
+
+    answer: "",
+  });
+
+
+  console.log("\nFINAL RESULT:");
+  console.log(result);
+};
+
+
+ragCycle();
+Ab isko execution ke through samjho
+
+Initial state:
+
+{
+  question: "What is RAG?",
+  searchQuery: "",
+  documents: [],
+  retryCount: 0,
+  answer: ""
+}
+① START
+START
+ ↓
+rewriteQuery
+
+rewriteQuery:
+
+searchQuery =
+"What is RAG? detailed explanation"
+② Retrieve
+rewriteQuery
+     ↓
+  retrieve
+
+Pehli baar:
+
+retryCount = 0
+
+Isliye hum intentionally empty documents return kar rahe hain:
+
+documents: []
+③ Check Documents
+
+Ab:
+
+state.documents.length
+
+is:
+
+0
+
+Router chalega:
+
+if (state.documents.length > 0) {
+    return "answer";
+}
+
+False.
+
+Then:
+
+if (state.retryCount >= 2) {
+    return "end";
+}
+
+0 >= 2 false.
+
+Therefore:
+
+return "retry";
+④ Yaha actual cycle start hota hai
+
+Mapping:
+
+{
+  answer: "generateAnswer",
+  retry: "retry",
+  end: END
+}
+
+Router:
+
+"retry"
+
+Mapping:
+
+retry → retry node
+
+Retry node:
+
+return {
+  retryCount: state.retryCount + 1
+};
+
+Ab:
+
+retryCount = 1
+
+Aur:
+
+.addEdge("retry", "rewriteQuery")
+
+Isliye:
+
+retry
+ ↓
+rewriteQuery
+Ye cycle hai:
+rewriteQuery
+      ↓
+   retrieve
+      ↓
+checkDocuments
+      ↓
+    retry
+      ↓
+rewriteQuery  ← वापस
+⑤ Second retrieval
+
+Ab:
+
+retryCount = 1
+
+rewriteQuery dobara chalega.
+
+Phir:
+
+retrieve
+
+Is baar hamare demo code me:
+
+if (state.retryCount === 0) {
+    return {
+        documents: [],
+    };
+}
+
+return {
+    documents: [...]
+};
+
+Since:
+
+retryCount = 1
+
+documents mil jayenge.
+
+documents: [
+  "RAG stands for Retrieval Augmented Generation.",
+  "RAG retrieves relevant documents before generating an answer."
+]
+⑥ Router ab different path lega
+
+Documents:
+
+length = 2
+
+Condition:
+
+if (state.documents.length > 0) {
+    return "answer";
+}
+
+True.
+
+So:
+
+"answer"
+   ↓
+generateAnswer
+
+Then:
+
+generateAnswer
+      ↓
+     END
+Final Flow
+
+Actual execution:
+
+START
+  ↓
+rewriteQuery
+  ↓
+retrieve
+  ↓
+checkDocuments
+  ↓
+retry
+  ↓
+rewriteQuery
+  ↓
+retrieve
+  ↓
+checkDocuments
+  ↓
+generateAnswer
+  ↓
+END
+
+Yahi self-correcting RAG ka basic idea hai.
+
+Tumhare Production RAG me kya change hoga?
+
+Abhi humne fake documents use kiye:
+
+return {
+  documents: [...]
+};
+
+Tumhare actual project me yaha:
+
+const docs = await retriever.invoke(
+  state.searchQuery
+);
+
+hoga.
+
+For example:
+
+const retrieveNode = async (state) => {
+
+  const docs = await retriever.invoke(
+    state.searchQuery
+  );
+
+  return {
+    documents: docs,
+  };
+};
+
+Then actual flow:
+
+User Question
+      ↓
+Query Rewrite
+      ↓
+Qdrant Retrieval
+      ↓
+Documents?
+   ↙       ↘
+ YES        NO
+  ↓          ↓
+Reranker   Retry
+  ↓          ↓
+Compress   Rewrite
+  ↓          ↓
+LLM Answer Retrieve
+  ↓
+ END
+
+Aur tumhare existing RAG ke concepts:
+
+LangChain
+   +
+Qdrant
+   +
+Multi Query
+   +
+Reranking
+   +
+Context Compression
+   +
+LangGraph
+
+milkar production-level RAG Agent workflow bana sakte hain.
+
+Sabse important production rule
+
+Cycle ko unlimited mat chhodna:
+
+if (state.retryCount >= 2) {
+  return "end";
+}
+
+Real system me iske saath timeout, error handling, logging/observability aur fallback response bhi rakhoge.
+
+Interview me ise kaise explain karogi?
+
+"I use LangGraph conditional edges to implement a self-correcting RAG workflow. After retrieval, I check whether relevant documents were found. If documents are available, the workflow proceeds to reranking and answer generation. If no documents are found, it rewrites the query and performs retrieval again. I also maintain a retry counter and maximum retry limit to prevent infinite loops."
+
+Ye answer tumhare LangChain + Qdrant + RAG + LangGraph project ko production perspective se explain karne ke liye kaafi strong hai.
