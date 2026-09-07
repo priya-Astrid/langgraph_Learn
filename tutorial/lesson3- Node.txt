@@ -1,0 +1,477 @@
+Lesson 3 — Nodes
+1. Node kya hota hai?
+
+Simple definition:
+
+Node ek function hota hai jo workflow ka ek specific task perform karta hai.
+
+Example:
+
+START
+  ↓
+Question Analysis     ← Node
+  ↓
+Retrieve Documents    ← Node
+  ↓
+Generate Answer       ← Node
+  ↓
+END
+
+Har Node ka ek specific responsibility hona chahiye.
+
+Production mein generally:
+
+❌ One huge node
+   → sab kuch ek hi function mein
+
+✅ Multiple small nodes
+   → har node ka clear responsibility
+2. Node ka basic structure
+
+LangGraph Node generally state receive karta hai:
+
+const myNode = async (state) => {
+
+    console.log(state);
+
+    return {
+        // state update
+    };
+};
+
+Yahan:
+
+state
+  ↓
+Node
+  ↓
+state update
+3. Ek simple example
+
+State:
+
+const State = z.object({
+    name: z.string(),
+    message: z.string(),
+});
+
+Node:
+
+const greetingNode = async (state) => {
+
+    console.log("Name:", state.name);
+
+    return {
+        message: `Hello ${state.name}`
+    };
+};
+
+Agar input:
+
+{
+    name: "Ayushi",
+    message: ""
+}
+
+To node:
+
+state.name
+    ↓
+"Ayushi"
+    ↓
+Node
+    ↓
+message update
+
+Final state:
+
+{
+    name: "Ayushi",
+    message: "Hello Ayushi"
+}
+4. Multiple Nodes 🔥
+
+Ab actual workflow banate hain.
+
+START
+  ↓
+Input Node
+  ↓
+Process Node
+  ↓
+Response Node
+  ↓
+END
+
+State:
+
+const State = z.object({
+    question: z.string(),
+    processedQuestion: z.string(),
+    answer: z.string()
+});
+Node 1 — Input
+const inputNode = async (state) => {
+
+    console.log("Input:", state.question);
+
+    return {
+        processedQuestion: state.question.trim()
+    };
+};
+
+Is node ka kaam:
+
+Question ko receive karke process karna.
+
+Node 2 — Process
+const processNode = async (state) => {
+
+    console.log("Processing:", state.processedQuestion);
+
+    return {
+        answer: `You asked: ${state.processedQuestion}`
+    };
+};
+
+Ye previous node se updated:
+
+state.processedQuestion
+
+read kar raha hai.
+
+Node 3 — Response
+const responseNode = async (state) => {
+
+    console.log("Final Answer:", state.answer);
+
+    return {};
+};
+
+Iska kaam final result inspect/prepare karna ho sakta hai.
+
+5. Nodes ko Graph mein connect karna
+import { StateGraph, START, END } from "@langchain/langgraph";
+import { z } from "zod";
+
+const State = z.object({
+    question: z.string(),
+    processedQuestion: z.string(),
+    answer: z.string()
+});
+
+const inputNode = async (state) => {
+
+    console.log("Input:", state.question);
+
+    return {
+        processedQuestion: state.question.trim()
+    };
+};
+
+const processNode = async (state) => {
+
+    console.log("Processing:", state.processedQuestion);
+
+    return {
+        answer: `You asked: ${state.processedQuestion}`
+    };
+};
+
+const responseNode = async (state) => {
+
+    console.log("Final Answer:", state.answer);
+
+    return {};
+};
+
+const workflow = new StateGraph(State)
+    .addNode("input", inputNode)
+    .addNode("process", processNode)
+    .addNode("response", responseNode)
+
+    .addEdge(START, "input")
+    .addEdge("input", "process")
+    .addEdge("process", "response")
+    .addEdge("response", END);
+
+const app = workflow.compile();
+
+const result = await app.invoke({
+    question: "   What is RAG?   ",
+    processedQuestion: "",
+    answer: ""
+});
+
+console.log(result);
+6. Execution kaise hoga?
+
+Ye line:
+
+await app.invoke(...)
+
+workflow start karegi.
+
+Step 1
+START
+ ↓
+input
+
+State:
+
+{
+    question: "   What is RAG?   ",
+    processedQuestion: "",
+    answer: ""
+}
+
+input return karega:
+
+{
+    processedQuestion: "What is RAG?"
+}
+Step 2
+input
+ ↓
+process
+
+Ab process ko updated state milegi:
+
+{
+    question: "   What is RAG?   ",
+    processedQuestion: "What is RAG?",
+    answer: ""
+}
+
+It returns:
+
+{
+    answer: "You asked: What is RAG?"
+}
+Step 3
+process
+ ↓
+response
+
+Response node ko:
+
+state.answer
+
+mil jayega.
+
+Step 4
+response
+ ↓
+END
+
+Final:
+
+{
+    question: "   What is RAG?   ",
+    processedQuestion: "What is RAG?",
+    answer: "You asked: What is RAG?"
+}
+7. Ye concept tumhare RAG project mein kaise lagega? 🔥
+
+Ab isko tumhare actual project se connect karo.
+
+Tumhara RAG workflow:
+
+START
+  ↓
+queryRewrite
+  ↓
+retrieve
+  ↓
+rerank
+  ↓
+generateAnswer
+  ↓
+END
+Node 1
+queryRewriteNode
+
+Kaam:
+
+User Question
+      ↓
+Better Search Query
+
+State update:
+
+{
+    rewrittenQuery: "..."
+}
+Node 2
+retrieveNode
+
+Kaam:
+
+rewrittenQuery
+      ↓
+Qdrant
+      ↓
+documents
+
+State update:
+
+{
+    documents: [...]
+}
+Node 3
+rerankNode
+
+Kaam:
+
+documents
+    ↓
+Cohere Reranker
+    ↓
+rerankedDocuments
+Node 4
+generateAnswerNode
+
+Kaam:
+
+question
++
+rerankedDocuments
+      ↓
+LLM
+      ↓
+answer
+
+So:
+
+                  STATE
+                    │
+                    ↓
+Question ──→ Rewrite Node
+                    │
+                    ↓
+              Retrieve Node
+                    │
+                    ↓
+               Rerank Node
+                    │
+                    ↓
+             Generate Node
+                    │
+                    ↓
+                  END
+
+Ye tumhare existing RAG concepts ko LangGraph workflow mein convert karna hai.
+
+8. Production mein Node design ka important rule
+
+Har Node ka single responsibility hona chahiye.
+
+Bad:
+
+const ragNode = async (state) => {
+
+    // query rewrite
+
+    // qdrant search
+
+    // reranking
+
+    // context compression
+
+    // LLM
+
+    // logging
+
+    // database
+
+};
+
+Ye maintain karna difficult ho jayega.
+
+Better:
+
+queryRewriteNode
+      ↓
+retrieveNode
+      ↓
+rerankNode
+      ↓
+compressNode
+      ↓
+generateAnswerNode
+
+Har node independently test/debug kiya ja sakta hai.
+
+9. Node ke andar kya nahi karna chahiye?
+
+Production perspective se:
+
+❌ Node ko unnecessarily huge mat banao
+const everythingNode = async () => {
+   // 500 lines
+};
+❌ Business logic mix mat karo
+
+Example:
+
+Controller
+  ↓
+Graph
+  ↓
+Node
+  ↓
+Service
+  ↓
+Repository
+
+Tumhare backend experience ke according hum later LangGraph ko controller/service architecture ke saath bhi properly integrate karenge.
+
+10. Interview mein kaise explain karogi? 🎯
+
+Agar interviewer puche:
+
+"What is a node in LangGraph?"
+
+Tum bol sakti ho:
+
+A node in LangGraph represents a unit of work in the workflow. It is typically a function that receives the current state, performs a specific operation such as calling an LLM, retrieving documents, or executing a tool, and returns state updates. Multiple nodes are connected through edges to create the overall workflow.
+
+Short version:
+
+Node is basically a function that performs one specific task and updates the graph state.
+
+🧠 Lesson 3 — Remember This
+NODE
+ │
+ ├── receives State
+ │
+ ├── performs a task
+ │
+ └── returns State updates
+
+Aur complete graph:
+
+START
+  ↓
+Node 1
+  ↓
+Node 2
+  ↓
+Node 3
+  ↓
+END
+Ab tak tumhare concepts:
+Lesson 1
+LangGraph
+   ↓
+Workflow orchestration
+
+Lesson 2
+State
+   ↓
+Workflow ka data
+
+Lesson 3
+Node
+   ↓
+State par specific task
