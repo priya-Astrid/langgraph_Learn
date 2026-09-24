@@ -1,0 +1,112 @@
+// Next topic : checkpointing => langgraph ka important production and memoryserver
+/**
+ without  checkpoint
+ START => Node A => Node B => Node C => END
+  Agar application Node B ke baad crash ho gayi,
+   to workflow ki current state lose ho sakti hai.
+  
+ CheckPointing
+  START => Node A =>checkpointer => Node B =>checkpointer => Node C =>checkpointer=> END
+ Graph apni state/progress ko save karta hai.
+
+ checkpointer kya  karta hai ?
+ checkpointer means graph during execution state ko persist/save karna,
+  taaki workflow ko later resume ya inspect kiya ja sake.
+
+  iska use hota hai :
+  conversation  memory
+  long-running agents
+  resume after failure
+  Human-in-the-loop
+  Debugging
+  Multiple turns
+  Stateful agents
+
+
+first MemorySaver
+learning ke liye first in-memory checkpointer use karenge.
+
+Concept:
+
+User Request
+     ↓
+LangGraph
+     ↓
+Node
+     ↓
+State
+     ↓
+MemorySaver 💾
+
+Aur ek thread ID important hoti hai:
+
+config = {
+  configurable: {
+    thread_id: "user-123"
+  }
+}
+
+Thread ID basically graph ko batati hai:
+
+"Ye kis conversation/workflow ki state hai?"
+
+bhi hum kya seekh rahe hain?
+
+Is ek project mein tum 4 concepts connect kar rahi ho:
+
+
+Isliye previous checkpoint ki state available hogi:
+
+Human: My name is Priya.
+AI: Nice to meet you.
+
+Human: What is my name?
+             ↓
+          Gemini
+             ↓
+      "Your name is Priya."
+
+Yahi checkpointing + thread concept ka practical use hai.
+
+ek important distinction
+
+checkpointer ko llm memory aur database se confuse mat karna
+memorySaver-> in-memory checkpointers -> learning /development
+Application/process restart hone par in-memory data generally persist nahi rahega.
+
+MongoDB Checkpointer
+
+Tumhare production knowledge ke liye:
+
+User
+ ↓
+LangGraph
+ ↓
+Gemini
+ ↓
+Checkpoint
+ ↓
+MongoDB
+
+Isse state ko application restart ke baad bhi persist kiya ja sakta hai.
+
+🎯 Abhi hum kya seekh rahe hain?
+
+Is ek project mein tum 4 concepts connect kar rahi ho:
+
+
+LangGraph
+   │
+   ├── State
+   │
+   ├── Node
+   │      └── Gemini LLM
+   │
+   ├── Checkpointer
+   │      └── MemorySaver
+   │
+   └── thread_id
+          └── conversation identity
+
+
+ */
