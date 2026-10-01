@@ -1,0 +1,332 @@
+what is getstate() ?
+getstate kisi particular thread_id ki lastest saved graph state ko read karta hai.
+
+currently you are doing flow =>
+humanMassage -> langgraph -> Gemini -> MongoDB Checkpoint
+
+when apply getstate() flow =>
+MongoDB Checkpoint -> getstate() ->lastest saved state
+
+2. in your existing code apply the 
+invoke() ke baad :-
+invoke() ke baad:
+
+const finalResponse = await addProcess.invoke(
+    {
+        messages: [
+            new HumanMessage("What is my name?")
+        ]
+    },
+    config
+);
+
+console.log("Response:", finalResponse.messages.at(-1).content);
+
+const state = await addProcess.getState(config);
+
+console.log("Current State:", state);
+mportant
+
+getState() ko bhi same config dena hai:
+
+const state = await addProcess.getState(config);
+
+because:
+
+thread_id: "priya123"
+
+se LangGraph ko pata chalega ki kis conversation ki state read karni hai.
+-----------------------------
+state mein kya milega ?
+in your graph state
+const State = new StateSchema({
+    messages: MessagesValue
+});
+
+To getState() ke result mein mainly messages milenge.
+
+For example conceptually:
+
+state
+ ├── values
+ │    └── messages
+ │         ├── HumanMessage
+ │         ├── AIMessage
+ │         ├── HumanMessage
+ │         └── AIMessage
+ │
+ ├── next
+ ├── config
+ └── metadata
+
+Tum specifically messages dekh sakti ho:
+
+console.log("Messages:", state.values.messages);
+
+Aur last AI response:
+
+console.log(
+    "Last Response:",
+    state.values.messages.at(-1).content
+);
+--------------------------
+
+invoke() vs getState()
+
+Ye difference yaad rakhna:
+
+Method	Purpose
+invoke()	Graph ko run karta hai
+getState()	Saved state ko read karta hai
+
+Example:
+
+await addProcess.invoke(...);
+
+➡️ Graph execute hoga.
+
+await addProcess.getState(config);
+
+➡️ Graph execute nahi hoga. Sirf existing checkpoint/state read hogi
+--------------------------------
+==================================================
+
+getState() ke next step mein getStateHistory() samjho.
+
+1. Difference
+getState()
+    ↓
+Latest/current state
+
+getStateHistory()
+    ↓
+Same thread_id ki previous states/checkpoints
+
+in your case:
+thread_id: priya123
+
+ke andar jitni graph executions hui hain, unki checkpoint history retrieve kar sakti ho.
+
+2. Code
+
+invoke() ke baad:
+
+const history = await addProcess.getStateHistory(config);
+
+for await (const checkpoint of history) {
+    console.log("Checkpoint:");
+    console.log(checkpoint);
+}
+
+Agar tum sirf messages dekhna chahti ho:
+
+const history = await addProcess.getStateHistory(config);
+
+for await (const checkpoint of history) {
+    console.log("\n--- Checkpoint ---");
+
+    checkpoint.values.messages.forEach((message) => {
+        console.log(
+            `${message.getType()} : ${message.content}`
+        );
+    });
+}
+3. Tumhe kya milega?
+
+Suppose same thread_id par tumne ye requests ki:
+
+1. My name is Priya
+2. What is my name?
+3. Give me one word for JavaScript
+
+getStateHistory(config) multiple saved states de sakta hai, conceptually:
+
+Checkpoint 3
+ ├─ My name is Priya
+ ├─ What is my name?
+ ├─ Give me one word for JavaScript
+ └─ AI response
+
+Checkpoint 2
+ ├─ My name is Priya
+ ├─ What is my name?
+ └─ AI response
+
+Checkpoint 1
+ └─ My name is Priya
+
+Yani history latest checkpoint se older checkpoints ki taraf milti hai.
+
+4. Tumhare MongoDB setup mein important point
+
+Tumhe thread_id same rakhna hai:
+
+const config = {
+    configurable: {
+        thread_id: "priya123"
+    }
+};
+
+Agar:
+
+thread_id: "user456"
+
+kar dogi, to woh different conversation/thread ki history hogi.
+---------------------------------
+getStateHistory() only messages ki list nhi deta.
+har checkpoint ke sath/execution infomation bhi hoti hai
+ 
+checkpoint
+├── values
+│   └── messages
+├── config
+│   └── configurable
+│       └── checkpoint_id
+├── metadata
+└── ...
+So ab tak tumne:
+
+MongoDBSaver
+     ↓
+thread_id
+     ↓
+invoke()
+     ↓
+getState()
+     ↓
+getStateHistory()
+=========================================
+Next: checkpoint.config + checkpoint.metadata ko practically inspect karenge, jisse tumhe samajh aayega ki LangGraph har execution ko uniquely kaise identify karta hai.
+Ab Checkpoint config aur metadata start karte hain. Ye getStateHistory() ka natural next step hai.
+
+# first understand checkpoint =>
+1. Pehle checkpoint ko samjho
+
+Tumhare paas:
+
+const history = await addProcess.getStateHistory(config);
+
+Har iteration mein:
+
+for await (const checkpoint of history) {
+    console.log(checkpoint);
+}
+
+checkpoint ek saved state snapshot hai.
+
+Iske andar mainly hum 3 cheezein dekhna chahte hain:
+
+checkpoint
+├── values      → us time ki graph state
+├── config      → checkpoint/thread identification
+└── metadata    → execution ke related information
+2. Ab ye code run karo
+
+Apne existing history code ko temporarily isse replace karo:
+
+const history = await addProcess.getStateHistory(config);
+
+for await (const checkpoint of history) {
+    console.log("\n==============================");
+    console.log("CHECKPOINT CONFIG");
+    console.log("==============================");
+
+    console.log(checkpoint.config);
+
+    console.log("\n==============================");
+    console.log("CHECKPOINT METADATA");
+    console.log("==============================");
+
+    console.log(checkpoint.metadata);
+}
+
+Run karo.
+
+Tumhe kuch is type ka output milega:
+
+CHECKPOINT CONFIG
+{
+  configurable: {
+    thread_id: 'priya123',
+    checkpoint_ns: '',
+    checkpoint_id: '...'
+  }
+}
+
+CHECKPOINT METADATA
+{
+  source: 'loop',
+  step: 1,
+  ...
+}
+
+Exact fields/version ke according output thoda different ho sakta hai.
+
+3. thread_id samjho
+
+Tumhara:
+
+thread_id: "priya123"
+
+iska matlab hai:
+
+Ye checkpoint kis conversation/thread ka hai?
+
+For example:
+
+thread_id = priya123
+
+aur:
+
+thread_id = user456
+
+dono ki states separate rahengi.
+
+MongoDB
+│
+├── priya123
+│    ├── checkpoint 1
+│    ├── checkpoint 2
+│    └── checkpoint 3
+│
+└── user456
+     ├── checkpoint 1
+     └── checkpoint 2
+4. checkpoint_id kya hai?
+
+Ye aur interesting hai.
+
+Ek hi thread_id ke andar multiple checkpoints hote hain.
+
+Isliye LangGraph har checkpoint ko identify karne ke liye checkpoint_id use karta hai.
+
+Conceptually:
+
+thread_id: priya123
+
+checkpoint_id: A
+checkpoint_id: B
+checkpoint_id: C
+
+Yaani:
+
+thread_id
+   ↓
+Conversation identify karta hai
+
+checkpoint_id
+   ↓
+Us conversation ke particular saved state ko identify karta hai
+5. Metadata kya karta hai?
+
+metadata mein LangGraph execution/checkpoint ke context ke baare mein information rakhta hai.
+
+Example:
+
+metadata
+├── source
+├── step
+├── writes
+└── ...
+
+Important: exact metadata fields ko assume nahi karna chahiye; tumhare LangGraph/package version ke output ko dekhkar hi unka meaning interpret karenge.

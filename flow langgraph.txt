@@ -1,0 +1,48 @@
+LangGraph me complete topics
+LangGraph Introduction & Architecture
+State
+Nodes
+Edges
+Conditional Edges
+Loops / Cycles
+Conditional Looping
+Multi-node cyclic workflow
+Generate → Validate → Retry
+Checkpointing
+MemorySaver
+Gemini LLM + Checkpointing
+thread_id
+Same thread me state maintain karna
+State persistence across multiple invocations
+getState() / state retrieval
+getStateHistory() / previous checkpoints retrieve karna
+📊 Tumhari current level
+
+LangGraph Fundamental -> state management -> cyclic workflow -> checkpoints/MemorySaver
+============complete basic ===============
+LangGraph advance state management topics
+State Reducers
+      ↓
+MessagesState / MessagesValue
+      ↓
+HumanMessage / AIMessage handling
+      ↓
+Command
+      ↓
+Send API / Dynamic Parallelism
+      ↓
+Subgraphs
+      ↓
+Human-in-the-Loop
+      ↓
+Interrupt / Resume
+      ↓
+Durable Execution
+      ↓
+Advanced Persistence
+      ↓
+Time Travel
+      ↓
+Multi-Agent Workflows
+      ↓
+Production LangGraph Architecture

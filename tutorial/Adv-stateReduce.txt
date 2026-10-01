@@ -1,0 +1,167 @@
+LangGraph – State Reducers =>
+
+what is state Reducers?
+LangGraph me state ek shared data hota jai jo nodes ke beech pass hota hai.
+const state = {
+    message :[],
+    count : 0 
+} 
+suppose 2 nodes 
+Node A -> message me "hello" add karta hai 
+Node B -> message me "How are you add karta hai" 
+both nodes update the state message
+
+question: 'how to decide LangGraph both node are update replce ya merge karna hai."
+in this place use Reducers.
+
+definition:-
+State Reducer = ek rule/function jo decide karta hai ki new state update ko existing state ke saath kaise combine karna hai.
+
+flow =>
+old state + Node update -> Reducer -> new state
+
+without Reducer
+example: 
+state.message =["hello"];
+node A :
+ return {
+    message: ["hii"]
+ }
+ agar ye update directly replace hua : 
+ ["hello"] -> ["hii"]
+
+ remove old data
+ but you want :  ["hello", "hii"]
+ when reduce said:
+ (oldValue, newValue) => [...oldValue, ...newValue]
+ Result:
+
+Old:
+["Hello"]
+
+New:
+["Hi"]
+
+Reducer:
+["Hello", "Hi"]
+js example =>
+const addItem = (oldItem, newItem)=>{
+    return [...oldItem, newItem]
+}
+const oldItem = ["hii", "priya"];
+const newItem =["nice to meet you"]
+const Result = addItem(oldItem, newItem);
+console.log(Result)
+
+output: ["hii","priya", "nice to meet you"]
+
+this is use basic LangGraph.
+5. LangGraph reduce
+LangGraph ke State ko define karte waqt hum reducer specify kar sakte hain.
+
+Conceptually:
+const State = {
+  messages: {
+    reducer: (oldMessages, newMessages) => {
+      return [...oldMessages, ...newMessages];
+    }
+  }
+};
+when :
+message :["Hello"]
+Node 1 
+return {
+    message: ["how are you"]
+}
+Reducer:
+
+["Hello"] + ["How are you?"]
+
+Result:
+
+["Hello", "How are you?"]
+6. Reducer ka real purpose
+
+Reducer especially useful hai jab:
+
+Multiple nodes same state update karte hain
+             ┌── Node A ──┐
+             │             │
+START ───────┤             ├── END
+             │             │
+             └── Node B ──┘
+
+Suppose:
+
+Node A → ["A"]
+Node B → ["B"]
+
+Dono same messages field update karte hain.
+
+Reducer decide karega:
+
+["A"] + ["B"]
+      ↓
+["A", "B"]
+
+instead of one update overwriting another.
+
+7. Important difference: Replace vs Reducer
+Without reducer
+Old value = 10
+
+Node returns = 20
+
+Final = 20
+
+Basically:
+
+oldValue = newValue;
+With reducer
+
+Suppose reducer:
+
+(oldValue, newValue) => oldValue + newValue
+
+Then:
+
+Old = 10
+New = 20
+
+10 + 20
+ ↓
+30
+
+So reducer completely controls how state updates happen.
+
+8. Very important interview point
+
+Interview me agar poocha:
+
+What is a reducer in LangGraph?
+
+Tum simple answer de sakti ho:
+
+A reducer defines how updates from nodes are merged with the existing state.
+It is useful when multiple nodes update the same state field, because 
+it determines whether the new value should replace or be combined with the existing value.
+
+Ye answer yaad rakhna. 👍
+
+9. Tumhare next practical step
+
+Abhi concept samajhna first step hai. Next hum actual LangGraph JavaScript code me:
+
+State
+ ↓
+Reducer
+ ↓
+Node A
+ ↓
+Node B
+ ↓
+Same state field update
+ ↓
+Final merged state
+
+implement karenge.

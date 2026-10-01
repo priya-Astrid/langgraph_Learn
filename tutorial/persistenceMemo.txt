@@ -1,0 +1,24 @@
+LangGraph ka next topic: Persistence + MongoDB Checkpointing start karte hain.
+
+i have already do that =>=> -
+
+first concept 
+application running -> Checkpointing saved in memory ->application restart -> memory lost
+mongodb Checkpointing mein
+
+application ->LangGraph -> Checkpointing -> MongoDB ->application restart => state can be recoved
+
+
+memorySaver -> in-memory Checkpointing ->MongoDB Checkpointing -Persistence state
+
+today leaning  sequence =>
+1.Checkpointing kya store karta hain.
+2.Thread Id + Checkpointing ka relation.
+3.MongoDB Checkpointing setup
+4. same Thread_Id se conversation continue karna.
+5. application restart ke bad state verify karna.
+6. multiple Thread_id se separate conversation samajhana.
+
+then you've verified that:
+
+User → LangGraph → MongoDB Checkpoint → Same thread → Previous state restored → Gemini
