@@ -566,3 +566,36 @@ A
 condition
  ↓
 END
+--------------------------------------
+=============================
+--------------------------------------
+you loopcycle pattern 
+ 
+ Node -> Router -> condition /  Loop
+                             \  END
+
+prodcution AI mein exactly isi concept ko use karke hum bana sakte hain:
+
+Generate Answer
+      ↓
+Evaluate Answer
+      ↓
+   Good?
+   ↙    ↘
+ No      Yes
+ ↓        ↓
+Retry    END
+ ↓
+Generate Answer
+Ab next kya?
+
+Tumhara ye basic loop complete hai. Ab next hum Loop with multiple nodes karenge
+
+next kya ?
+current => increment -> increment -> increment
+
+next => start -> Generate ->validation
+                                ↓
+                                |-- retry -> Generate
+                                |-- end -> END
+                                
